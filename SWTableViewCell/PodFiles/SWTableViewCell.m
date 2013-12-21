@@ -356,7 +356,7 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     
     // Force the scroll back to run on the main thread because of weird scroll view bugs
     dispatch_async(dispatch_get_main_queue(), ^{
-        [self.cellScrollView setContentOffset:CGPointMake([self leftUtilityButtonsWidth], 0) animated:YES];
+        [self.cellScrollView setContentOffset:CGPointMake([self leftUtilityButtonsWidth], 0) animated:animated];
     });
     _cellState = kCellStateCenter;
     
@@ -366,6 +366,34 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     }
 }
 
+
+- (void)showLeftUtilityButtonsAnimated:(BOOL)animated
+{
+    // Force the scroll back to run on the main thread because of weird scroll view bugs
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.cellScrollView setContentOffset:CGPointMake(0, 0) animated:animated];
+    });
+    _cellState = kCellStateLeft;
+    
+    if ([self.delegate respondsToSelector:@selector(swipeableTableViewCell:scrollingToState:)])
+    {
+        [self.delegate swipeableTableViewCell:self scrollingToState:kCellStateLeft];
+    }
+}
+
+- (void)showRightUtilityButtonsAnimated:(BOOL)animated
+{
+    // Force the scroll back to run on the main thread because of weird scroll view bugs
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.cellScrollView setContentOffset:CGPointMake([self leftUtilityButtonsWidth] + [self rightUtilityButtonsWidth], 0) animated:animated];
+    });
+    _cellState = kCellStateRight;
+    
+    if ([self.delegate respondsToSelector:@selector(swipeableTableViewCell:scrollingToState:)])
+    {
+        [self.delegate swipeableTableViewCell:self scrollingToState:kCellStateRight];
+    }
+}
 
 #pragma mark - Setup helpers
 
