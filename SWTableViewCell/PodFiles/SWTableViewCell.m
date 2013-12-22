@@ -103,12 +103,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     cellScrollView.scrollsToTop = NO;
     cellScrollView.scrollEnabled = YES;
     
-    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                                                           action:@selector(scrollViewUp:)];
-    [cellScrollView addGestureRecognizer:tapGestureRecognizer];
-    
-    self.tapGestureRecognizer = tapGestureRecognizer;
-    
     SWLongPressGestureRecognizer *longPressGestureRecognizer = [[SWLongPressGestureRecognizer alloc] initWithTarget:self
                                                                                                              action:@selector(scrollViewPressed:)];
     longPressGestureRecognizer.minimumPressDuration = 0.1;
@@ -123,6 +117,14 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     scrollViewContentView.backgroundColor = [UIColor whiteColor];
     [self.cellScrollView addSubview:scrollViewContentView];
     self.scrollViewContentView = scrollViewContentView;
+    
+    
+    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                                           action:@selector(scrollViewUp:)];
+    [self.scrollViewContentView addGestureRecognizer:tapGestureRecognizer];
+    
+    self.tapGestureRecognizer = tapGestureRecognizer;
+
     
     // Add the cell scroll view to the cell
     UIView *contentViewParent = self;
