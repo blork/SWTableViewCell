@@ -14,7 +14,7 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 
 #pragma mark - SWUtilityButtonView
 
-@interface SWTableViewCell () <UIScrollViewDelegate>
+@interface SWTableViewCell () <UIScrollViewDelegate, UIGestureRecognizerDelegate>
 {
     SWCellState _cellState; // The state of the cell within the scroll view, can be left, right or middle
     CGFloat additionalRightPadding;
@@ -111,6 +111,7 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     SWLongPressGestureRecognizer *longPressGestureRecognizer = [[SWLongPressGestureRecognizer alloc] initWithTarget:self
                                                                                                              action:@selector(scrollViewPressed:)];
     longPressGestureRecognizer.minimumPressDuration = 0.1;
+    longPressGestureRecognizer.delegate = self;
     [cellScrollView addGestureRecognizer:longPressGestureRecognizer];
     
     self.longPressGestureRecognizer = longPressGestureRecognizer;
@@ -198,6 +199,14 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 
 
 #pragma mark Selection
+
+- (BOOL) gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
+{
+    if ( [NSStringFromClass(touch.view.class) isEqualToString:@"UIButton"] )
+        return NO;
+    
+    return YES;
+}
 
 - (void)scrollViewPressed:(id)sender
 {
