@@ -521,7 +521,14 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView
 {
     self.tapGestureRecognizer.enabled = NO;
-    if (scrollView.contentOffset.x > [self leftUtilityButtonsWidth])
+    if ( scrollView.contentOffset.x < 0 && _leftUtilityButtons.count == 0 ) {
+        // Block scroll to right if _leftUtilityButtons.count is 0
+        scrollView.contentOffset = CGPointZero;
+    } else if ( scrollView.contentOffset.x > [self leftUtilityButtonsWidth] && _rightUtilityButtons.count == 0 ) {
+        // Block scroll to left if _rightUtilityButtons.count is 0
+        scrollView.contentOffset = [self scrollViewContentOffset];
+    }
+    else if (scrollView.contentOffset.x > [self leftUtilityButtonsWidth])
     {
         if ([self rightUtilityButtonsWidth] > 0)
         {
