@@ -14,7 +14,7 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 
 #pragma mark - SWUtilityButtonView
 
-@interface SWTableViewCell () <UIScrollViewDelegate>
+@interface SWTableViewCell () <UIScrollViewDelegate, UIGestureRecognizerDelegate>
 {
     SWCellState _cellState; // The state of the cell within the scroll view, can be left, right or middle
     CGFloat additionalRightPadding;
@@ -22,7 +22,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 
 @property (nonatomic, strong) SWUtilityButtonView *scrollViewButtonViewLeft;
 @property (nonatomic, strong) SWUtilityButtonView *scrollViewButtonViewRight;
-@property (nonatomic, strong) SWCellScrollView *cellScrollView;
 @property (nonatomic, weak) UIView *scrollViewContentView;
 @property (nonatomic) CGFloat height;
 
@@ -103,9 +102,16 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     cellScrollView.scrollsToTop = NO;
     cellScrollView.scrollEnabled = YES;
     
+    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                                           action:@selector(scrollViewUp:)];
+    [cellScrollView addGestureRecognizer:tapGestureRecognizer];
+    
+    self.tapGestureRecognizer = tapGestureRecognizer;
+    
     SWLongPressGestureRecognizer *longPressGestureRecognizer = [[SWLongPressGestureRecognizer alloc] initWithTarget:self
                                                                                                              action:@selector(scrollViewPressed:)];
     longPressGestureRecognizer.minimumPressDuration = 0.1;
+    longPressGestureRecognizer.delegate = self;
     [cellScrollView addGestureRecognizer:longPressGestureRecognizer];
     
     self.longPressGestureRecognizer = longPressGestureRecognizer;
@@ -118,13 +124,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     [self.cellScrollView addSubview:scrollViewContentView];
     self.scrollViewContentView = scrollViewContentView;
     
-    
-    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                                                           action:@selector(scrollViewUp:)];
-    [self.scrollViewContentView addGestureRecognizer:tapGestureRecognizer];
-    
-    self.tapGestureRecognizer = tapGestureRecognizer;
-
     
     // Add the cell scroll view to the cell
     UIView *contentViewParent = self;
@@ -203,6 +202,14 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 
 
 #pragma mark Selection
+
+- (BOOL) gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
+{
+    if ( [NSStringFromClass(touch.view.class) isEqualToString:@"UIButton"] )
+        return NO;
+    
+    return YES;
+}
 
 - (void)scrollViewPressed:(id)sender
 {
@@ -433,10 +440,13 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     {
         [self.delegate swipeableTableViewCell:self scrollingToState:kCellStateRight];
     }
-    
-    for (SWTableViewCell *cell in [self.containingTableView visibleCells]) {
-        if (![cell isEqual:self]) {
-            [cell hideUtilityButtonsAnimated:YES];
+
+    if ([self.delegate respondsToSelector:@selector(swipeableTableViewCellShouldHideUtilityButtonsOnSwipe:)])
+    {
+        for (SWTableViewCell *cell in [self.containingTableView visibleCells]) {
+            if (cell != self && [cell isKindOfClass:[SWTableViewCell class]] && [self.delegate swipeableTableViewCellShouldHideUtilityButtonsOnSwipe:cell]) {
+                [cell hideUtilityButtonsAnimated:YES];
+            }
         }
     }
 }
@@ -468,9 +478,12 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
         [self.delegate swipeableTableViewCell:self scrollingToState:kCellStateLeft];
     }
     
-    for (SWTableViewCell *cell in [self.containingTableView visibleCells]) {
-        if (![cell isEqual:self]) {
-            [cell hideUtilityButtonsAnimated:YES];
+    if ([self.delegate respondsToSelector:@selector(swipeableTableViewCellShouldHideUtilityButtonsOnSwipe:)])
+    {
+        for (SWTableViewCell *cell in [self.containingTableView visibleCells]) {
+            if (cell != self && [cell isKindOfClass:[SWTableViewCell class]] && [self.delegate swipeableTableViewCellShouldHideUtilityButtonsOnSwipe:cell]) {
+                [cell hideUtilityButtonsAnimated:YES];
+            }
         }
     }
 }
@@ -548,10 +561,25 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView
 {
     self.tapGestureRecognizer.enabled = NO;
-    if (scrollView.contentOffset.x > [self leftUtilityButtonsWidth])
+    if ( scrollView.contentOffset.x < 0 && _leftUtilityButtons.count == 0 ) {
+        // Block scroll to right if _leftUtilityButtons.count is 0
+        scrollView.contentOffset = CGPointZero;
+    } else if ( scrollView.contentOffset.x > [self leftUtilityButtonsWidth] && _rightUtilityButtons.count == 0 ) {
+        // Block scroll to left if _rightUtilityButtons.count is 0
+        scrollView.contentOffset = [self scrollViewContentOffset];
+    }
+    else if (scrollView.contentOffset.x > [self leftUtilityButtonsWidth])
     {
         if ([self rightUtilityButtonsWidth] > 0)
         {
+            if (self.delegate && [self.delegate respondsToSelector:@selector(swipeableTableViewCell:canSwipeToState:)])
+            {
+                scrollView.scrollEnabled = [self.delegate swipeableTableViewCell:self canSwipeToState:kCellStateRight];
+                if (!scrollView.scrollEnabled)
+                {
+                    return;
+                }
+            }
             CGFloat scrollViewWidth = MIN(scrollView.contentOffset.x - [self leftUtilityButtonsWidth], [self rightUtilityButtonsWidth]);
             
             // Expose the right button view
@@ -569,6 +597,14 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
         // Expose the left button view
         if ([self leftUtilityButtonsWidth] > 0)
         {
+            if (self.delegate && [self.delegate respondsToSelector:@selector(swipeableTableViewCell:canSwipeToState:)])
+            {
+                scrollView.scrollEnabled = [self.delegate swipeableTableViewCell:self canSwipeToState:kCellStateLeft];
+                if (!scrollView.scrollEnabled)
+                {
+                    return;
+                }
+            }
             CGFloat scrollViewWidth = MIN(scrollView.contentOffset.x - [self leftUtilityButtonsWidth], [self leftUtilityButtonsWidth]);
             
             self.scrollViewButtonViewLeft.frame = CGRectMake([self leftUtilityButtonsWidth], 0.0f, scrollViewWidth, self.height);
